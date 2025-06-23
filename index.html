@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tongue Twister Challenge</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', cursive;
+            background-color: #FFD6E0;
+            text-align: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #FF5E78;
+            margin-bottom: 30px;
+        }
+        #setup-screen {
+            margin-bottom: 30px;
+        }
+        .player-btn {
+            padding: 15px 25px;
+            margin: 10px;
+            font-size: 18px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .player-btn:hover {
+            transform: scale(1.05);
+        }
+        #game-screen {
+            display: none;
+        }
+        #player-info {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #2196F3;
+        }
+        #twister-display {
+            font-size: 24px;
+            min-height: 150px;
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #FFF5D6;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .controls {
+            margin: 30px 0;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        button {
+            padding: 12px 25px;
+            font-size: 16px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        #start-btn {
+            background-color: #2196F3;
+            color: white;
+        }
+        #record-btn {
+            background-color: #FF9800;
+            color: white;
+        }
+        #skip-btn {
+            background-color: #9E9E9E;
+            color: white;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        button:disabled {
+            opacity: 0.6;
+            transform: none;
+        }
+        #timer {
+            font-size: 24px;
+            color: #FF5722;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        #result {
+            font-size: 28px;
+            margin: 30px 0;
+            min-height: 40px;
+            font-weight: bold;
+        }
+        .win {
+            color: #4CAF50;
+            animation: celebrate 0.5s infinite alternate;
+        }
+        .lose {
+            color: #F44336;
+            animation: shake 0.5s;
+        }
+        @keyframes celebrate {
+            from { transform: scale(1); }
+            to { transform: scale(1.1); }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-15px); }
+            75% { transform: translateX(15px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>👅 Tongue Twister Challenge!</h1>
+        
+        <div id="browser-notice" style="display: none; background-color: #FFF3CD; border: 1px solid #FFEAA7; border-radius: 10px; padding: 15px; margin-bottom: 20px; color: #856404;">
+            <strong>⚠️ Browser Notice:</strong> Speech recognition is not supported in your browser. You can still play by typing your answers manually!
+        </div>
+        
+        <!-- Player Setup -->
+        <div id="setup-screen">
+            <h2>How many players?</h2>
+            <div>
+                <button class="player-btn" data-players="2">2 Players</button>
+                <button class="player-btn" data-players="3">3 Players</button>
+                <button class="player-btn" data-players="4">4 Players</button>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen">
+            <div id="player-info"></div>
+            <div id="twister-display">Get ready!</div>
+            <div class="controls">
+                <button id="start-btn">START ROUND</button>
+                <button id="record-btn" disabled>🎤 RECORD</button>
+                <button id="skip-btn" disabled>⏭️ SKIP</button>
+            </div>
+            <div id="manual-input" style="display: none; margin: 20px 0;">
+                <input type="text" id="answer-input" placeholder="Type your answer here..." style="padding: 10px; font-size: 16px; width: 80%; border-radius: 25px; border: 2px solid #2196F3;">
+                <button id="submit-btn" style="margin-left: 10px; padding: 10px 20px; background-color: #4CAF50; color: white; border: none; border-radius: 25px; cursor: pointer;">Submit</button>
+            </div>
+            <div id="timer">Time: <span id="time-left">30</span>s</div>
+            <div id="result"></div>
+        </div>
+
+        <!-- Audio Elements -->
+        <!-- Removed broken audio elements - will use Web Audio API instead -->
+    </div>
+
+    <script>
+        // Game Elements
+        const setupScreen = document.getElementById('setup-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const playerInfo = document.getElementById('player-info');
+        const twisterDisplay = document.getElementById('twister-display');
+        const startBtn = document.getElementById('start-btn');
+        const recordBtn = document.getElementById('record-btn');
+        const skipBtn = document.getElementById('skip-btn');
+        const timeLeftDisplay = document.getElementById('time-left');
+        const resultDisplay = document.getElementById('result');
+        const manualInput = document.getElementById('manual-input');
+        const answerInput = document.getElementById('answer-input');
+        const submitBtn = document.getElementById('submit-btn');
+        const browserNotice = document.getElementById('browser-notice');
+
+        // Game Data
+        const tongueTwisters = [
+            "Fuzzy Wuzzy was a bear. Fuzzy Wuzzy had no hair. Fuzzy Wuzzy wasn't fuzzy, was he?",
+            "How much wood would a woodchuck chuck if a woodchuck could chuck wood?",
+            "She sells seashells by the seashore.",
+            "Peter Piper picked a peck of pickled peppers.",
+            "I scream, you scream, we all scream for ice cream!"
+        ];
+
+        // Game Variables
+        let players = [];
+        let scores = [];
+        let currentPlayerIndex = 0;
+        let currentTwister = "";
+        let timer;
+        let timeLeft = 30;
+
+        // Audio Context for sound effects
+        let audioContext = null;
+        
+        // Speech Synthesis for voice feedback
+        let speechSynthesis = window.speechSynthesis;
+        let voices = [];
+        
+        // Initialize audio context
+        function initAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (e) {
+                console.log('Web Audio API not supported');
+            }
+        }
+
+        // Initialize speech synthesis
+        function initSpeech() {
+            if (speechSynthesis) {
+                // Load voices
+                speechSynthesis.onvoiceschanged = function() {
+                    voices = speechSynthesis.getVoices();
+                };
+                speechSynthesis.getVoices();
+            }
+        }
+
+        // Speak text with voice
+        function speak(text, rate = 1.0, pitch = 1.0) {
+            if (!speechSynthesis) return;
+            
+            // Cancel any ongoing speech
+            speechSynthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // Try to find a good voice
+            if (voices.length > 0) {
+                // Prefer female voices for cheering, male for taunts
+                const femaleVoices = voices.filter(voice => voice.name.includes('female') || voice.name.includes('Samantha') || voice.name.includes('Victoria'));
+                const maleVoices = voices.filter(voice => voice.name.includes('male') || voice.name.includes('Alex') || voice.name.includes('Daniel'));
+                
+                if (text.toLowerCase().includes('amazing') || text.toLowerCase().includes('fantastic')) {
+                    utterance.voice = femaleVoices[0] || voices[0];
+                } else {
+                    utterance.voice = maleVoices[0] || voices[0];
+                }
+            }
+            
+            utterance.rate = rate;
+            utterance.pitch = pitch;
+            utterance.volume = 0.8;
+            
+            speechSynthesis.speak(utterance);
+        }
+
+        // Generate sound effects
+        function playWinSound() {
+            if (!audioContext) return;
+            
+            // Main victory chord
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+            oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.1); // E5
+            oscillator.frequency.setValueAtTime(783.99, audioContext.currentTime + 0.2); // G5
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+
+            // Add cheering/clapping sounds
+            setTimeout(() => playCheeringSounds(), 500);
+        }
+
+        function playLoseSound() {
+            if (!audioContext) return;
+            
+            // Main failure chord
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(220, audioContext.currentTime); // A3
+            oscillator.frequency.setValueAtTime(196, audioContext.currentTime + 0.1); // G3
+            oscillator.frequency.setValueAtTime(174.61, audioContext.currentTime + 0.2); // F3
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.4);
+
+            // Add "loser loser" taunts
+            setTimeout(() => playLoserTaunts(), 400);
+        }
+
+        // Generate cheering/clapping sounds
+        function playCheeringSounds() {
+            if (!audioContext) return;
+            
+            // Multiple clapping sounds
+            for (let i = 0; i < 8; i++) {
+                setTimeout(() => {
+                    const clapOsc = audioContext.createOscillator();
+                    const clapGain = audioContext.createGain();
+                    const clapFilter = audioContext.createBiquadFilter();
+                    
+                    clapOsc.connect(clapFilter);
+                    clapFilter.connect(clapGain);
+                    clapGain.connect(audioContext.destination);
+                    
+                    // Random clap frequency
+                    const freq = 100 + Math.random() * 200;
+                    clapOsc.frequency.setValueAtTime(freq, audioContext.currentTime);
+                    
+                    clapFilter.type = 'bandpass';
+                    clapFilter.frequency.setValueAtTime(800, audioContext.currentTime);
+                    clapFilter.Q.setValueAtTime(10, audioContext.currentTime);
+                    
+                    clapGain.gain.setValueAtTime(0.1, audioContext.currentTime);
+                    clapGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+                    
+                    clapOsc.start(audioContext.currentTime);
+                    clapOsc.stop(audioContext.currentTime + 0.1);
+                }, i * 50);
+            }
+
+            // Cheering "woo" sounds
+            setTimeout(() => {
+                for (let i = 0; i < 3; i++) {
+                    setTimeout(() => {
+                        const wooOsc = audioContext.createOscillator();
+                        const wooGain = audioContext.createGain();
+                        
+                        wooOsc.connect(wooGain);
+                        wooGain.connect(audioContext.destination);
+                        
+                        wooOsc.frequency.setValueAtTime(800 + i * 100, audioContext.currentTime);
+                        wooOsc.frequency.exponentialRampToValueAtTime(1200 + i * 100, audioContext.currentTime + 0.3);
+                        
+                        wooGain.gain.setValueAtTime(0.15, audioContext.currentTime);
+                        wooGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                        
+                        wooOsc.start(audioContext.currentTime);
+                        wooOsc.stop(audioContext.currentTime + 0.3);
+                    }, i * 200);
+                }
+            }, 400);
+        }
+
+        // Generate "loser loser" taunts
+        function playLoserTaunts() {
+            if (!audioContext) return;
+            
+            // "Loser" taunt sounds
+            const loserFrequencies = [300, 250, 200]; // Descending "loser" sound
+            
+            loserFrequencies.forEach((freq, index) => {
+                setTimeout(() => {
+                    const loserOsc = audioContext.createOscillator();
+                    const loserGain = audioContext.createGain();
+                    const loserFilter = audioContext.createBiquadFilter();
+                    
+                    loserOsc.connect(loserFilter);
+                    loserFilter.connect(loserGain);
+                    loserGain.connect(audioContext.destination);
+                    
+                    loserOsc.frequency.setValueAtTime(freq, audioContext.currentTime);
+                    loserOsc.frequency.exponentialRampToValueAtTime(freq * 0.7, audioContext.currentTime + 0.2);
+                    
+                    loserFilter.type = 'lowpass';
+                    loserFilter.frequency.setValueAtTime(400, audioContext.currentTime);
+                    
+                    loserGain.gain.setValueAtTime(0.2, audioContext.currentTime);
+                    loserGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                    
+                    loserOsc.start(audioContext.currentTime);
+                    loserOsc.stop(audioContext.currentTime + 0.2);
+                }, index * 150);
+            });
+
+            // Booing sounds
+            setTimeout(() => {
+                for (let i = 0; i < 4; i++) {
+                    setTimeout(() => {
+                        const booOsc = audioContext.createOscillator();
+                        const booGain = audioContext.createGain();
+                        
+                        booOsc.connect(booGain);
+                        booGain.connect(audioContext.destination);
+                        
+                        const booFreq = 150 + Math.random() * 100;
+                        booOsc.frequency.setValueAtTime(booFreq, audioContext.currentTime);
+                        booOsc.frequency.exponentialRampToValueAtTime(booFreq * 0.8, audioContext.currentTime + 0.15);
+                        
+                        booGain.gain.setValueAtTime(0.1, audioContext.currentTime);
+                        booGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+                        
+                        booOsc.start(audioContext.currentTime);
+                        booOsc.stop(audioContext.currentTime + 0.15);
+                    }, i * 80);
+                }
+            }, 500);
+        }
+
+        // Cheering phrases for winning
+        const cheeringPhrases = [
+            "Amazing! You nailed it!",
+            "Fantastic! Perfect pronunciation!",
+            "Incredible! You're a tongue twister master!",
+            "Brilliant! That was spot on!",
+            "Outstanding! You crushed it!",
+            "Spectacular! What a performance!",
+            "Excellent! You're on fire!",
+            "Wonderful! That was flawless!",
+            "Superb! You're unstoppable!",
+            "Magnificent! Pure talent!"
+        ];
+
+        // Taunting phrases for losing
+        const tauntingPhrases = [
+            "Loser! Loser! Better luck next time!",
+            "Not quite right! Loser!",
+            "Oops! That was a bit messy, loser!",
+            "Nice try, but not quite! Loser!",
+            "Almost got it! But still a loser!",
+            "That was close, but no cigar! Loser!",
+            "Better practice those tongue twisters, loser!",
+            "Not your best performance! Loser!",
+            "You'll get it next time, loser!",
+            "That tongue needs more training, loser!",
+            "Loser! Loser! Loser!",
+            "Ha ha! You're a loser!",
+            "Loser alert! Loser alert!",
+            "Epic fail! Loser!",
+            "Loser! Loser! Loser! Loser!"
+        ];
+
+        // Play win sound and voice
+        function playWinFeedback() {
+            playWinSound();
+            const randomCheer = cheeringPhrases[Math.floor(Math.random() * cheeringPhrases.length)];
+            setTimeout(() => speak(randomCheer, 1.1, 1.2), 600); // Speak after sound effect
+        }
+
+        // Play lose sound and voice
+        function playLoseFeedback() {
+            playLoseSound();
+            const randomTaunt = tauntingPhrases[Math.floor(Math.random() * tauntingPhrases.length)];
+            setTimeout(() => speak(randomTaunt, 0.9, 0.8), 500); // Speak after sound effect
+        }
+
+        // Initialize Speech Recognition
+        let recognition = null;
+        let isSpeechSupported = false;
+
+        // Check if speech recognition is supported
+        if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+            isSpeechSupported = true;
+
+            // Speech Recognition Handlers
+            recognition.onresult = function(event) {
+                const spokenText = event.results[0][0].transcript.toLowerCase();
+                checkAnswer(spokenText);
+            };
+
+            recognition.onerror = function(event) {
+                console.log('Speech recognition error:', event.error);
+                endRound(false);
+                resultDisplay.textContent = "🎤 Microphone error!";
+                resultDisplay.className = "lose";
+            };
+
+            recognition.onend = function() {
+                recordBtn.textContent = "🎤 RECORD";
+                recordBtn.disabled = false;
+            };
+        } else {
+            console.log('Speech recognition not supported in this browser');
+            browserNotice.style.display = 'block';
+        }
+
+        // Event Listeners
+        document.querySelectorAll('.player-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const numPlayers = parseInt(this.getAttribute('data-players'));
+                setupGame(numPlayers);
+            });
+        });
+
+        startBtn.addEventListener('click', startRound);
+        recordBtn.addEventListener('click', startRecording);
+        skipBtn.addEventListener('click', skipRound);
+        submitBtn.addEventListener('click', submitManualAnswer);
+        
+        // Allow Enter key to submit manual answer
+        answerInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                submitManualAnswer();
+            }
+        });
+
+        // Initialize audio when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initAudio();
+            initSpeech();
+        });
+
+        // Game Functions
+        function setupGame(numPlayers) {
+            players = [];
+            scores = [];
+            
+            for (let i = 1; i <= numPlayers; i++) {
+                players.push(`Player ${i}`);
+                scores.push(0);
+            }
+            
+            setupScreen.style.display = 'none';
+            gameScreen.style.display = 'block';
+            updatePlayerInfo();
+        }
+
+        function updatePlayerInfo() {
+            let scoreText = players.map((player, index) => 
+                `${player} (${scores[index]})`).join(" | ");
+            playerInfo.innerHTML = `<h3>${players[currentPlayerIndex]}'s Turn</h3><p>${scoreText}</p>`;
+        }
+
+        function startRound() {
+            currentTwister = tongueTwisters[Math.floor(Math.random() * tongueTwisters.length)];
+            twisterDisplay.textContent = currentTwister;
+            resultDisplay.textContent = "";
+            resultDisplay.className = "";
+            startBtn.disabled = true;
+            recordBtn.disabled = false;
+            skipBtn.disabled = false;
+            
+            timeLeft = 30;
+            timeLeftDisplay.textContent = timeLeft;
+            timer = setInterval(function() {
+                timeLeft--;
+                timeLeftDisplay.textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    endRound(false);
+                    playLoseFeedback();
+                    resultDisplay.textContent = "⏰ TIME'S UP!";
+                    resultDisplay.className = "lose";
+                }
+            }, 1000);
+        }
+
+        function startRecording() {
+            if (!isSpeechSupported) {
+                // Show manual input option
+                manualInput.style.display = 'block';
+                answerInput.focus();
+                return;
+            }
+            
+            try {
+                recognition.start();
+                recordBtn.textContent = "🎤 LISTENING...";
+                recordBtn.disabled = true;
+            } catch (error) {
+                console.log('Error starting speech recognition:', error);
+                alert('Unable to start microphone. Please check your browser permissions.');
+                recordBtn.textContent = "🎤 RECORD";
+                recordBtn.disabled = false;
+            }
+        }
+
+        function skipRound() {
+            endRound(false);
+            playLoseFeedback();
+            resultDisplay.textContent = "😱 SKIPPED!";
+            resultDisplay.className = "lose";
+        }
+
+        function checkAnswer(spokenText) {
+            if (spokenText === currentTwister.toLowerCase()) {
+                scores[currentPlayerIndex]++;
+                endRound(true);
+                playWinFeedback();
+                resultDisplay.textContent = "🎉 CORRECT!";
+                resultDisplay.className = "win";
+            } else {
+                endRound(false);
+                playLoseFeedback();
+                resultDisplay.textContent = "😂 WRONG!";
+                resultDisplay.className = "lose";
+            }
+        }
+
+        function endRound(success) {
+            clearInterval(timer);
+            recordBtn.textContent = "🎤 RECORD";
+            recordBtn.disabled = true;
+            skipBtn.disabled = true;
+            manualInput.style.display = 'none';
+            
+            setTimeout(function() {
+                currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+                updatePlayerInfo();
+                startBtn.disabled = false;
+            }, 2000);
+        }
+
+        function submitManualAnswer() {
+            const answer = answerInput.value.trim().toLowerCase();
+            if (answer === currentTwister.toLowerCase()) {
+                scores[currentPlayerIndex]++;
+                endRound(true);
+                playWinFeedback();
+                resultDisplay.textContent = "🎉 CORRECT!";
+                resultDisplay.className = "win";
+            } else {
+                endRound(false);
+                playLoseFeedback();
+                resultDisplay.textContent = "😂 WRONG!";
+                resultDisplay.className = "lose";
+            }
+            answerInput.value = "";
+        }
+    </script>
+</body>
+</html>
